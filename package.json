@@ -1,0 +1,23 @@
+{
+  "name": "grid-golf-three",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "3D Grid Golf game using Three.js",
+  "dependencies": {
+    "gsap": "^3.13.0",
+    "oimo": "^1.0.9",
+    "three": "^0.179.1"
+  },
+  "devDependencies": {
+    "vite": "^7.1.4"
+  }
+}

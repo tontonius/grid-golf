@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grid Golf 3D</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #2ca649;
+        font-family: Arial, sans-serif;
+        color: white;
+        overflow: hidden;
+        cursor: url("Tiles/tile_0134.png"), auto;
+      }
+
+      #topStatus {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 200;
+        background-color: rgba(0, 0, 0, 0.8);
+        padding: 10px 20px;
+        border-radius: 25px;
+        display: flex;
+        gap: 30px;
+        align-items: center;
+        backdrop-filter: blur(10px);
+      }
+
+      #gameContainer {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+      }
+
+      #ui {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        z-index: 100;
+        /* background-color: rgba(0, 0, 0, 0.7); */
+        padding: 20px;
+        border-radius: 10px;
+        backdrop-filter: blur(10px);
+      }
+
+      .dice-selection {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      .dice-option {
+        padding: 8px 12px;
+        border: 2px solid #4a7c59;
+        border-radius: 5px;
+        background-color: #2c5530;
+        color: white;
+        cursor: url("image-5.png"), pointer;
+        font-size: 12px;
+        transition: all 0.2s;
+      }
+
+      .dice-option:hover {
+        background-color: #4a7c59;
+      }
+
+      .dice-option.selected {
+        background-color: #ffd700;
+        color: #333;
+        border-color: #ffd700;
+      }
+
+      .controls {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      .cta-btn {
+        background: linear-gradient(0deg, #ff935d 0%, #fe5600 100%) !important;
+        color: #fbfbfb !important;
+      }
+
+      .juicy-btn {
+        font-family: "Arial", sans-serif;
+        font-weight: 900;
+        font-size: 2rem;
+        color: #fe5600;
+        background: linear-gradient(180deg, #ffda73 0%, #ff9933 100%);
+        border: none;
+        border-radius: 16px;
+        padding: 16px 40px;
+        cursor: pointer;
+        box-shadow: 0 6px 0 #e55a00, 0 8px 15px rgba(0, 0, 0, 0.4);
+        /* text-shadow: -2px 2px 0 #005eff, -4px 4px 0 #ff3333; */
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      .juicy-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 8px 0 #e55a00, 0 10px 18px rgba(0, 0, 0, 0.5);
+      }
+
+      .juicy-btn:active {
+        transform: scale(0.95) translateY(4px);
+        box-shadow: 0 2px 0 #e55a00, 0 4px 10px rgba(0, 0, 0, 0.4);
+      }
+
+      button {
+        padding: 10px 15px;
+        font-size: 14px;
+        border: none;
+        border-radius: 5px;
+        cursor: url("image-5.png"), pointer;
+        background-color: #4a7c59;
+        color: white;
+      }
+
+      button:hover {
+        background-color: #5a8c69;
+      }
+
+      button:disabled {
+        background-color: #666;
+        cursor: not-allowed;
+      }
+
+      .game-info {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+      }
+
+      .stroke-counter,
+      .par-info {
+        font-size: 16px;
+        font-weight: bold;
+      }
+
+      .par-info {
+        color: #ffd700;
+      }
+
+      .dice-spinner {
+        font-size: 20px;
+        animation: spin 0.1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotateY(0deg);
+        }
+        100% {
+          transform: rotateY(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Top status bar -->
+    <div id="topStatus">
+      <div class="stroke-counter">Strokes: <span id="strokeCount">0</span></div>
+      <div class="par-info">Par: <span id="parValue">4</span></div>
+    </div>
+
+    <div id="gameContainer">
+      <div id="ui">
+        <div class="dice-selection" id="diceSelection">
+          <!-- Dice options will be generated dynamically by JavaScript -->
+        </div>
+
+        <div
+          class="dice-amount-controls"
+          style="margin-bottom: 15px; text-align: center; display: none"
+        >
+          <label style="font-size: 12px; margin-right: 10px">Dice Count:</label>
+          <button
+            id="decreaseDice"
+            onclick="changeDiceAmount(-1)"
+            style="padding: 5px 10px; font-size: 12px"
+          >
+            -
+          </button>
+          <span
+            id="diceAmount"
+            style="margin: 0 10px; font-size: 14px; font-weight: bold"
+            >1</span
+          >
+          <button
+            id="increaseDice"
+            onclick="changeDiceAmount(1)"
+            style="padding: 5px 10px; font-size: 12px"
+          >
+            +
+          </button>
+        </div>
+
+        <div class="controls">
+          <button class="juicy-btn cta-btn" id="rollDice" onclick="rollDice()">
+            Roll Dice
+          </button>
+          <button id="putt" onclick="putt()">Putt (1 tile)</button>
+          <button id="newHole" onclick="generateNewHole()">New Hole</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
