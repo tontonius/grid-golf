@@ -38,8 +38,8 @@
 
       #ui {
         position: absolute;
-        bottom: 20px;
-        right: 20px;
+        bottom: 0px;
+        right: 0px;
         z-index: 100;
         /* background-color: rgba(0, 0, 0, 0.7); */
         padding: 20px;
@@ -78,7 +78,6 @@
       .controls {
         display: flex;
         gap: 10px;
-        margin-bottom: 15px;
       }
 
       .cta-btn {
@@ -89,7 +88,7 @@
       .juicy-btn {
         font-family: "Arial", sans-serif;
         font-weight: 900;
-        font-size: 2rem;
+        font-size: 1rem;
         color: #fe5600;
         background: linear-gradient(180deg, #ffda73 0%, #ff9933 100%);
         border: none;
@@ -205,7 +204,6 @@
             Roll Dice
           </button>
           <button id="putt" onclick="putt()">Putt (1 tile)</button>
-          <button id="newHole" onclick="generateNewHole()">New Hole</button>
         </div>
       </div>
     </div>

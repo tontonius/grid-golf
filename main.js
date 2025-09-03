@@ -217,8 +217,8 @@ function initThreeJS() {
   // Handle window resize
   window.addEventListener("resize", onWindowResize);
 
-  // Add keyboard controls
-  addKeyboardControls();
+  // Add camera drag controls
+  addCameraDragControls();
 
   // Start render loop
   animate();
@@ -488,97 +488,243 @@ function animate(time) {
   }
 }
 
-// Add keyboard controls for camera
-function addKeyboardControls() {
-  const keys = {
-    w: false,
-    a: false,
-    s: false,
-    d: false,
-    ArrowUp: false,
-    ArrowLeft: false,
-    ArrowDown: false,
-    ArrowRight: false,
-  };
+// Add camera drag controls for desktop and mobile
+function addCameraDragControls() {
+  let isDragging = false;
+  let isClick = true; // Track if this interaction should be treated as a click
+  let dragThreshold = 10; // Minimum pixels to move before considering it a drag
+  let lastMouseX = 0;
+  let lastMouseY = 0;
+  let lastTouchX = 0;
+  let lastTouchY = 0;
+  let startMouseX = 0;
+  let startMouseY = 0;
+  let startTouchX = 0;
+  let startTouchY = 0;
 
-  function onKeyDown(event) {
-    if (keys.hasOwnProperty(event.key)) {
-      keys[event.key] = true;
+  // Check if event target is a UI element that should handle its own interactions
+  function isUIElement(target) {
+    // Check if the target or any of its parents is a UI element
+    let element = target;
+    while (element && element !== document.body) {
+      if (
+        element.id === "ui" ||
+        element.id === "topStatus" ||
+        element.classList.contains("dice-option") ||
+        element.tagName === "BUTTON" ||
+        element.tagName === "LABEL"
+      ) {
+        return true;
+      }
+      element = element.parentElement;
+    }
+    return false;
+  }
+
+  // Mouse event handlers
+  function onMouseDown(event) {
+    if (gameState.gameOver) return;
+
+    // If clicked on a UI element, don't start drag mode
+    if (isUIElement(event.target)) {
+      return;
+    }
+
+    isDragging = false;
+    isClick = true;
+    startMouseX = event.clientX;
+    startMouseY = event.clientY;
+    lastMouseX = event.clientX;
+    lastMouseY = event.clientY;
+
+    // Don't prevent default yet - let click handler work
+  }
+
+  function onMouseMove(event) {
+    // Only process if we actually started a drag (not on UI element)
+    if (startMouseX === 0 && startMouseY === 0) return;
+
+    const deltaX = event.clientX - lastMouseX;
+    const deltaY = event.clientY - lastMouseY;
+
+    // Check if movement exceeds drag threshold
+    const totalMovement =
+      Math.abs(event.clientX - startMouseX) +
+      Math.abs(event.clientY - startMouseY);
+
+    if (totalMovement > dragThreshold) {
+      isClick = false;
+      if (!isDragging) {
+        isDragging = true;
+        // Prevent default to avoid text selection on drag
+        event.preventDefault();
+      }
+    }
+
+    if (isDragging) {
+      // Move camera based on drag direction
+      moveCameraByDrag(deltaX, deltaY);
+
+      lastMouseX = event.clientX;
+      lastMouseY = event.clientY;
+
+      // Prevent default to avoid text selection
+      event.preventDefault();
     }
   }
 
-  function onKeyUp(event) {
-    if (keys.hasOwnProperty(event.key)) {
-      keys[event.key] = false;
+  function onMouseUp(event) {
+    // If this was a short click (not a drag), don't prevent the click event
+    if (!isClick) {
+      event.preventDefault();
+    }
+    isDragging = false;
+
+    // Reset coordinates for next interaction
+    startMouseX = 0;
+    startMouseY = 0;
+    lastMouseX = 0;
+    lastMouseY = 0;
+  }
+
+  // Touch event handlers
+  function onTouchStart(event) {
+    if (gameState.gameOver || event.touches.length !== 1) return;
+
+    const touch = event.touches[0];
+
+    // If touched on a UI element, don't start drag mode
+    if (isUIElement(event.target)) {
+      return;
+    }
+
+    isDragging = false;
+    isClick = true;
+    startTouchX = touch.clientX;
+    startTouchY = touch.clientY;
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+
+    // Don't prevent default yet - let tap work for click handler
+  }
+
+  function onTouchMove(event) {
+    // Only process if we actually started a drag (not on UI element)
+    if (startTouchX === 0 && startTouchY === 0) return;
+
+    if (event.touches.length !== 1) return;
+
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - lastTouchX;
+    const deltaY = touch.clientY - lastTouchY;
+
+    // Check if movement exceeds drag threshold
+    const totalMovement =
+      Math.abs(touch.clientX - startTouchX) +
+      Math.abs(touch.clientY - startTouchY);
+
+    if (totalMovement > dragThreshold) {
+      isClick = false;
+      if (!isDragging) {
+        isDragging = true;
+        // Prevent default to avoid scrolling on drag
+        event.preventDefault();
+      }
+    }
+
+    if (isDragging) {
+      // Move camera based on drag direction
+      moveCameraByDrag(deltaX, deltaY);
+
+      lastTouchX = touch.clientX;
+      lastTouchY = touch.clientY;
+
+      // Prevent default to avoid scrolling
+      event.preventDefault();
     }
   }
 
-  window.addEventListener("keydown", onKeyDown);
-  window.addEventListener("keyup", onKeyUp);
+  function onTouchEnd(event) {
+    // If this was a short tap (not a drag), don't prevent the click event
+    if (!isClick && event.changedTouches.length > 0) {
+      // This was a drag, prevent any subsequent click events
+      event.preventDefault();
+    }
+    isDragging = false;
 
-  // Store keys for use in updateCamera
-  window.cameraKeys = keys;
+    // Reset coordinates for next interaction
+    startTouchX = 0;
+    startTouchY = 0;
+    lastTouchX = 0;
+    lastTouchY = 0;
+  }
+
+  // Mouse events
+  renderer.domElement.addEventListener("mousedown", onMouseDown);
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("mouseup", onMouseUp);
+
+  // Touch events for mobile
+  renderer.domElement.addEventListener("touchstart", onTouchStart);
+  renderer.domElement.addEventListener("touchmove", onTouchMove);
+  renderer.domElement.addEventListener("touchend", onTouchEnd);
+
+  // Change cursor to indicate draggable
+  renderer.domElement.style.cursor = "grab";
+
+  // Update cursor during drag
+  renderer.domElement.addEventListener("mousedown", () => {
+    renderer.domElement.style.cursor = "grabbing";
+  });
+
+  window.addEventListener("mouseup", () => {
+    renderer.domElement.style.cursor = "grab";
+  });
 }
 
-// Update camera position based on keyboard input
+// Move camera based on drag input (works for both mouse and touch)
+function moveCameraByDrag(deltaX, deltaY) {
+  // Convert drag deltas to camera movement
+  // Scale the movement to feel natural
+  const dragSensitivity = 0.01;
+  const moveX = -deltaX * dragSensitivity;
+  const moveZ = -deltaY * dragSensitivity; // Flip Z direction so dragging up moves camera north
+
+  // Update camera target (what we're looking at)
+  cameraTarget.x += moveX;
+  cameraTarget.z += moveZ;
+
+  // Update camera position (maintain relative position to target)
+  cameraPosition.x += moveX;
+  cameraPosition.z += moveZ;
+
+  // Apply bounds
+  cameraTarget.x = Math.max(
+    cameraBounds.minX,
+    Math.min(cameraBounds.maxX, cameraTarget.x)
+  );
+  cameraTarget.z = Math.max(
+    cameraBounds.minZ,
+    Math.min(cameraBounds.maxZ, cameraTarget.z)
+  );
+  cameraPosition.x = Math.max(
+    cameraBounds.minX,
+    Math.min(cameraBounds.maxX, cameraPosition.x)
+  );
+  cameraPosition.z = Math.max(
+    cameraBounds.minZ,
+    Math.min(cameraBounds.maxZ, cameraPosition.z)
+  );
+
+  // Update camera
+  camera.position.copy(cameraPosition);
+  camera.lookAt(cameraTarget);
+}
+
+// Update camera position (now just handles any camera updates if needed)
 function updateCamera() {
-  if (!window.cameraKeys) return;
-
-  const keys = window.cameraKeys;
-  let moved = false;
-
-  // Calculate movement direction
-  let moveX = 0,
-    moveZ = 0;
-
-  if (keys.w || keys.ArrowUp) {
-    moveZ -= cameraSpeed; // Flipped: W/Up now moves north (positive Z)
-    moved = true;
-  }
-  if (keys.s || keys.ArrowDown) {
-    moveZ += cameraSpeed; // Flipped: S/Down now moves south (negative Z)
-    moved = true;
-  }
-  if (keys.a || keys.ArrowLeft) {
-    moveX -= cameraSpeed;
-    moved = true;
-  }
-  if (keys.d || keys.ArrowRight) {
-    moveX += cameraSpeed;
-    moved = true;
-  }
-
-  if (moved) {
-    // Update camera target (what we're looking at)
-    cameraTarget.x += moveX;
-    cameraTarget.z += moveZ;
-
-    // Update camera position (maintain relative position to target)
-    cameraPosition.x += moveX;
-    cameraPosition.z += moveZ;
-
-    // Apply bounds
-    cameraTarget.x = Math.max(
-      cameraBounds.minX,
-      Math.min(cameraBounds.maxX, cameraTarget.x)
-    );
-    cameraTarget.z = Math.max(
-      cameraBounds.minZ,
-      Math.min(cameraBounds.maxZ, cameraTarget.z)
-    );
-    cameraPosition.x = Math.max(
-      cameraBounds.minX,
-      Math.min(cameraBounds.maxX, cameraPosition.x)
-    );
-    cameraPosition.z = Math.max(
-      cameraBounds.minZ,
-      Math.min(cameraBounds.maxZ, cameraPosition.z)
-    );
-
-    // Update camera
-    camera.position.copy(cameraPosition);
-    camera.lookAt(cameraTarget);
-  }
+  // Camera updates are now handled directly in moveCameraByDrag
+  // This function is kept for any future camera smoothing or effects
 }
 
 // Handle window resize
@@ -1011,23 +1157,123 @@ function removeShotShapeDice() {
   }
 }
 
+// Animate dice with springback effect and fade out
+function animateDiceExit() {
+  const allDice = [...physicsDice];
+  if (shotShapeDice) {
+    allDice.push(shotShapeDice);
+  }
+
+  if (allDice.length === 0) return;
+
+  // Create a timeline for the animation
+  const tl = gsap.timeline();
+
+  // First phase: Spring expansion (0.3s)
+  allDice.forEach((dice, index) => {
+    if (dice.model) {
+      // Stagger the animation slightly for each die
+      const delay = index * 0.2;
+
+      tl.to(
+        dice.model.scale,
+        {
+          x: 1.2,
+          y: 1.2,
+          z: 1.2,
+          duration: 0.15,
+          ease: "back.out(2)",
+          delay: delay,
+        },
+        0
+      );
+
+      // Also animate material opacity if available
+      dice.model.traverse((child) => {
+        if (child.material && child.material.opacity !== undefined) {
+          tl.to(
+            child.material,
+            {
+              opacity: 0.8,
+              duration: 0.3,
+              ease: "power2.out",
+              delay: delay,
+            },
+            0
+          );
+        }
+      });
+    }
+  });
+
+  // Second phase: Shrink and fade out (0.5s)
+  allDice.forEach((dice, index) => {
+    if (dice.model) {
+      const delay = 0.15 + index * 0.05; // Start after expansion
+
+      tl.to(
+        dice.model.scale,
+        {
+          x: 0.1,
+          y: 0.1,
+          z: 0.1,
+          duration: 0.5,
+          ease: "power2.in",
+          delay: delay,
+        },
+        0.3
+      );
+
+      // Fade out completely
+      dice.model.traverse((child) => {
+        if (child.material && child.material.opacity !== undefined) {
+          tl.to(
+            child.material,
+            {
+              opacity: 0,
+              duration: 0.5,
+              ease: "linear",
+              delay: delay,
+            },
+            0.3
+          );
+        }
+      });
+    }
+  });
+
+  // Third phase: Remove from scene after animation completes
+  tl.call(
+    () => {
+      removePhysicsDice();
+      removeShotShapeDice();
+    },
+    [],
+    0.8
+  ); // 0.8s total duration
+}
+
 // Roll physics dice (both distance and shot shape)
 function rollPhysicsDice() {
   removePhysicsDice();
   removeShotShapeDice();
 
+  // Center of the viewport (same as camera target)
+  const centerX = 8;
+  const centerZ = 16;
+
   const dicePromises = [];
   for (let i = 0; i < diceAmount; i++) {
-    // Position distance dice around the center
+    // Position distance dice in a small circle around the center of the viewport
     const angle = (i / diceAmount) * Math.PI * 2;
-    const radius = 2;
-    const x = Math.random() * 4 + 20;
-    const z = Math.random() * 4 + 16;
+    const radius = 1.5; // Small radius around center
+    const x = centerX + Math.cos(angle) * radius;
+    const z = centerZ + Math.sin(angle) * radius;
     dicePromises.push(createPhysicsDice(x, 15, z));
   }
 
-  // Create shot shape dice (positioned separately)
-  const shotShapePromise = createPhysicsShotShapeDice(20, 15, 20);
+  // Create shot shape dice (positioned in center of viewport)
+  const shotShapePromise = createPhysicsShotShapeDice(centerX, 15, centerZ);
 
   Promise.all([...dicePromises, shotShapePromise]).then((results) => {
     physicsDice = results.slice(0, -1); // All but the last are distance dice
@@ -1267,11 +1513,11 @@ function addClickHandler() {
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
 
-  function onMouseClick(event) {
+  function handleInteraction(clientX, clientY) {
     if (gameState.gameOver) return;
 
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    mouse.x = (clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(clientY / window.innerHeight) * 2 + 1;
 
     raycaster.setFromCamera(mouse, camera);
 
@@ -1282,11 +1528,26 @@ function addClickHandler() {
     if (highlightIntersects.length > 0) {
       const highlight = highlightIntersects[0].object;
       moveBall(highlight.userData.x, highlight.userData.y);
-      return;
+      return true; // Interaction was handled
+    }
+    return false; // No highlight was clicked
+  }
+
+  function onMouseClick(event) {
+    handleInteraction(event.clientX, event.clientY);
+  }
+
+  function onTouchTap(event) {
+    if (event.changedTouches.length > 0) {
+      const touch = event.changedTouches[0];
+      if (handleInteraction(touch.clientX, touch.clientY)) {
+        event.preventDefault(); // Prevent click event from also firing
+      }
     }
   }
 
   renderer.domElement.addEventListener("click", onMouseClick);
+  renderer.domElement.addEventListener("touchend", onTouchTap);
 }
 
 // Game logic functions (adapted from 2D version)
@@ -1362,6 +1623,11 @@ function rollDice() {
 
       updateUI();
       showMovementOptions(distance);
+
+      // Start dice exit animation after showing results
+      setTimeout(() => {
+        animateDiceExit();
+      }, 1500); // Wait 1.5 seconds after showing results before animating out
     }
 
     // Re-enable button
