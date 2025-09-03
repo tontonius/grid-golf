@@ -827,8 +827,8 @@ function addCameraDragControls() {
 // Move camera based on drag input (works for both mouse and touch)
 function moveCameraByDrag(deltaX, deltaY) {
   // Convert drag deltas to camera movement
-  // Scale the movement to feel natural
-  const dragSensitivity = 0.01;
+  // Scale the movement to feel natural and responsive
+  const dragSensitivity = 0.04; // Increased from 0.01 for faster, more responsive camera movement
   const moveX = -deltaX * dragSensitivity;
   const moveZ = -deltaY * dragSensitivity; // Flip Z direction so dragging up moves camera north
 
