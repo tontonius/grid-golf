@@ -110,9 +110,9 @@ const SHOT_SHAPE_DICE = {
 const DICE_TYPES = {
   1: { name: "Driver", faces: [4, 5, 6, 7, 8, 10] },
   2: { name: "Long iron shot", faces: [3, 3, 3, 4, 4, 5] },
-  3: { name: "Mid iron shot", faces: [2, 2, 2, 3, 3, 3] },
-  5: { name: "Wedge shot", faces: [2, 2, 2, 3, 3, 3] },
-  6: { name: "Chip shot", faces: [1, 1, 1, 2, 2, 2] },
+  3: { name: "Wedge shot", faces: [2, 2, 2, 3, 3, 3] },
+  4: { name: "Chip shot", faces: [1, 1, 1, 2, 2, 2] },
+  5: { name: "Putter", faces: [1, 1, 1, 1, 1, 2] },
 };
 
 // Three.js setup
@@ -347,6 +347,9 @@ function transitionToNewHole() {
 
       // Small delay to ensure hole generation is complete
       setTimeout(() => {
+        // Position camera to center on the hole before fading back in
+        positionCameraOnHole();
+
         // Fade back in
         gsap.to(transitionOverlay, {
           opacity: 0,
@@ -361,6 +364,34 @@ function transitionToNewHole() {
       }, 500); // 500ms delay after hole generation
     },
   });
+}
+
+// Position camera to center on the hole
+function positionCameraOnHole() {
+  const holePos = gameState.holePosition;
+
+  // Calculate camera position to center on hole while maintaining current camera properties
+  const currentHeight = camera.position.y;
+  const currentDistance = camera.position.distanceTo(cameraTarget);
+
+  // Set target to hole position
+  const holeTarget = new THREE.Vector3(holePos.x, 0, holePos.y);
+
+  // Calculate camera position maintaining the same relative offset
+  const currentOffset = new THREE.Vector3().subVectors(
+    camera.position,
+    cameraTarget
+  );
+  const holeCameraPos = new THREE.Vector3().addVectors(
+    holeTarget,
+    currentOffset
+  );
+
+  // Update camera position and target
+  camera.position.copy(holeCameraPos);
+  camera.lookAt(holeTarget);
+  cameraTarget.copy(holeTarget);
+  cameraPosition.copy(holeCameraPos);
 }
 
 // Perform smooth camera sweep from hole to tee position
@@ -1014,8 +1045,8 @@ function createCustomDiceMesh(diceValues = [1, 2, 3, 4, 5, 6]) {
     context.fillRect(0, 0, 256, 256);
 
     // Add border
-    context.strokeStyle = "#000000";
-    context.lineWidth = 4;
+    context.strokeStyle = "#f80800";
+    context.lineWidth = 60;
     context.strokeRect(2, 2, 252, 252);
 
     // Draw the number
@@ -1677,6 +1708,22 @@ function selectDice(diceType) {
 
   // Regenerate the dice selection UI to update the selected state
   generateDiceSelectionUI();
+
+  // Hide dice selection after selecting to save screen space
+  setTimeout(() => {
+    const diceSelection = document.getElementById("diceSelection");
+    const toggleButton = document.getElementById("toggleDice");
+
+    if (
+      diceSelection &&
+      toggleButton &&
+      !diceSelection.classList.contains("hidden")
+    ) {
+      diceSelection.classList.add("hidden");
+      toggleButton.textContent = "Clubs";
+      toggleButton.classList.add("cta-btn");
+    }
+  }, 500); // Small delay to let user see the selection
 }
 
 function rollDice() {
@@ -2679,10 +2726,31 @@ function generateDiceSelectionUI() {
       diceOption.classList.add("selected");
     }
 
-    // Create content with dice name and faces
+    // Create content with dice name and faces, each face as a white square div
     diceOption.innerHTML = `
       ${diceType.name}<br />
-      <small>${diceType.faces.join(",")}</small>
+      <div style="display: flex; flex-direction: row; gap: 6px; margin-top: 4px;">
+        ${diceType.faces
+          .map(
+            (face) => `
+              <div style="
+                width: 20px;
+                height: 20px;
+                background: #fff;
+                border: 2px solid #f80800;
+                border-radius: 6px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                font-weight: semibold;
+                color: #222;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.07);
+              ">${face}</div>
+            `
+          )
+          .join("")}
+      </div>
     `;
 
     // Add click handler
@@ -2699,6 +2767,36 @@ function changeDiceAmount(delta) {
   document.getElementById("diceAmount").textContent = diceAmount;
 }
 
+// Toggle dice selection visibility
+function toggleDiceSelection() {
+  const diceSelection = document.getElementById("diceSelection");
+  const toggleButton = document.getElementById("toggleDice");
+
+  if (diceSelection.classList.contains("hidden")) {
+    // Show dice selection
+    diceSelection.classList.remove("hidden");
+    toggleButton.textContent = "Clubs";
+    toggleButton.classList.add("cta-btn");
+  } else {
+    // Hide dice selection
+    diceSelection.classList.add("hidden");
+    toggleButton.textContent = "Clubs";
+    toggleButton.classList.remove("cta-btn");
+  }
+}
+
+// Initialize dice selection as hidden
+function initDiceSelectionVisibility() {
+  const diceSelection = document.getElementById("diceSelection");
+  const toggleButton = document.getElementById("toggleDice");
+
+  if (diceSelection && toggleButton) {
+    diceSelection.classList.add("hidden");
+    toggleButton.textContent = "Clubs";
+    toggleButton.classList.remove("cta-btn");
+  }
+}
+
 // Make functions globally accessible for HTML onclick handlers
 window.selectDice = selectDice;
 window.rollDice = rollDice;
@@ -2706,6 +2804,8 @@ window.putt = putt;
 window.generateNewHole = generateNewHole;
 window.transitionToNewHole = transitionToNewHole;
 window.performCameraSweep = performCameraSweep;
+window.positionCameraOnHole = positionCameraOnHole;
+window.toggleDiceSelection = toggleDiceSelection;
 window.changeDiceAmount = changeDiceAmount;
 
 // Initialize game
@@ -2720,6 +2820,9 @@ function initGame() {
 
   // Generate UI components from configuration
   generateDiceSelectionUI();
+
+  // Initialize dice selection as hidden
+  initDiceSelectionVisibility();
 
   // For initial hole generation, don't use transition (show immediately)
   generateNewHole();

@@ -52,6 +52,14 @@
         flex-direction: column;
         gap: 10px;
         margin-bottom: 15px;
+        transition: all 0.3s ease;
+      }
+
+      .dice-selection.hidden {
+        opacity: 0;
+        max-height: 0;
+        margin-bottom: 0;
+        overflow: hidden;
       }
 
       .dice-option {
@@ -205,12 +213,19 @@
           </button>
           <button class="juicy-btn" id="putt" onclick="putt()">Putt</button>
           <button
+            id="toggleDice"
+            onclick="toggleDiceSelection()"
+            class="juicy-btn"
+          >
+            Clubs
+          </button>
+          <!-- <button
             id="debugSweep"
             onclick="transitionToNewHole()"
             class="juicy-btn"
           >
             New Hole
-          </button>
+          </button> -->
         </div>
       </div>
     </div>
