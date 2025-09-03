@@ -93,7 +93,7 @@
         background: linear-gradient(180deg, #ffda73 0%, #ff9933 100%);
         border: none;
         border-radius: 16px;
-        padding: 16px 40px;
+        padding: 16px 30px;
         cursor: pointer;
         box-shadow: 0 6px 0 #e55a00, 0 8px 15px rgba(0, 0, 0, 0.4);
         /* text-shadow: -2px 2px 0 #005eff, -4px 4px 0 #ff3333; */
@@ -201,9 +201,16 @@
 
         <div class="controls">
           <button class="juicy-btn cta-btn" id="rollDice" onclick="rollDice()">
-            Roll Dice
+            Roll
           </button>
-          <button id="putt" onclick="putt()">Putt (1 tile)</button>
+          <button class="juicy-btn" id="putt" onclick="putt()">Putt</button>
+          <button
+            id="debugSweep"
+            onclick="transitionToNewHole()"
+            class="juicy-btn"
+          >
+            New Hole
+          </button>
         </div>
       </div>
     </div>

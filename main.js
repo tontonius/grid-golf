@@ -301,12 +301,123 @@ function initCelebrationSystem() {
 
   celebrationButton.onclick = () => {
     hideCelebration();
-    generateNewHole();
+    transitionToNewHole();
   };
 
   celebrationContainer.appendChild(celebrationImage);
   celebrationContainer.appendChild(celebrationButton);
   document.body.appendChild(celebrationContainer);
+}
+
+// Initialize transition system
+let transitionOverlay = null;
+
+function initTransitionSystem() {
+  // Create transition overlay
+  transitionOverlay = document.createElement("div");
+  transitionOverlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #000000;
+    z-index: 2000;
+    opacity: 0;
+    pointer-events: none;
+    display: none;
+  `;
+
+  document.body.appendChild(transitionOverlay);
+}
+
+// Transition to new hole with fade effect
+function transitionToNewHole() {
+  if (!transitionOverlay) return;
+
+  // Show overlay and fade to black
+  transitionOverlay.style.display = "block";
+  gsap.to(transitionOverlay, {
+    opacity: 1,
+    duration: 0.8,
+    ease: "power2.inOut",
+    onComplete: () => {
+      // Generate new hole while faded to black
+      generateNewHole();
+
+      // Small delay to ensure hole generation is complete
+      setTimeout(() => {
+        // Fade back in
+        gsap.to(transitionOverlay, {
+          opacity: 0,
+          duration: 0.8,
+          ease: "power2.inOut",
+          onComplete: () => {
+            transitionOverlay.style.display = "none";
+            // Start camera sweep from hole to tee
+            performCameraSweep();
+          },
+        });
+      }, 500); // 500ms delay after hole generation
+    },
+  });
+}
+
+// Perform smooth camera sweep from hole to tee position
+function performCameraSweep() {
+  const teePos = gameState.ballPosition;
+
+  // Store current camera state
+  const startPosition = camera.position.clone();
+  const startTarget = cameraTarget.clone();
+
+  // Calculate new target position (tee position)
+  const endTarget = new THREE.Vector3(teePos.x, 0, teePos.y);
+
+  // Calculate new camera position maintaining the same relative offset
+  const offset = new THREE.Vector3().subVectors(startPosition, startTarget);
+  const endPosition = new THREE.Vector3().addVectors(endTarget, offset);
+
+  // Update the global camera position/target variables
+  cameraPosition.copy(startPosition);
+  cameraTarget.copy(startTarget);
+
+  // Create smooth camera pan animation
+  const tl = gsap.timeline();
+
+  // Hold on current position for a moment (0.5 second)
+  tl.to({}, { duration: 0.5 });
+
+  // Smooth pan to tee position (2 seconds)
+  tl.to(
+    cameraPosition,
+    {
+      x: endPosition.x,
+      y: endPosition.y,
+      z: endPosition.z,
+      duration: 2.0,
+      ease: "power2.inOut",
+    },
+    0
+  );
+
+  tl.to(
+    cameraTarget,
+    {
+      x: endTarget.x,
+      y: endTarget.y,
+      z: endTarget.z,
+      duration: 2.0,
+      ease: "power2.inOut",
+    },
+    0
+  );
+
+  // Update camera during animation
+  tl.eventCallback("onUpdate", () => {
+    camera.position.copy(cameraPosition);
+    camera.lookAt(cameraTarget);
+  });
 }
 
 // Play sound effect
@@ -1258,13 +1369,13 @@ function rollPhysicsDice() {
   removePhysicsDice();
   removeShotShapeDice();
 
-  // Center of the viewport (same as camera target)
-  const centerX = 8;
-  const centerZ = 16;
+  // Use current camera target position so dice drop where camera is looking
+  const centerX = cameraTarget.x;
+  const centerZ = cameraTarget.z;
 
   const dicePromises = [];
   for (let i = 0; i < diceAmount; i++) {
-    // Position distance dice in a small circle around the center of the viewport
+    // Position distance dice in a small circle around the camera's current target
     const angle = (i / diceAmount) * Math.PI * 2;
     const radius = 1.5; // Small radius around center
     const x = centerX + Math.cos(angle) * radius;
@@ -1272,7 +1383,7 @@ function rollPhysicsDice() {
     dicePromises.push(createPhysicsDice(x, 15, z));
   }
 
-  // Create shot shape dice (positioned in center of viewport)
+  // Create shot shape dice (positioned at camera's current target)
   const shotShapePromise = createPhysicsShotShapeDice(centerX, 15, centerZ);
 
   Promise.all([...dicePromises, shotShapePromise]).then((results) => {
@@ -2593,6 +2704,8 @@ window.selectDice = selectDice;
 window.rollDice = rollDice;
 window.putt = putt;
 window.generateNewHole = generateNewHole;
+window.transitionToNewHole = transitionToNewHole;
+window.performCameraSweep = performCameraSweep;
 window.changeDiceAmount = changeDiceAmount;
 
 // Initialize game
@@ -2602,11 +2715,13 @@ function initGame() {
   initPostProcessing(); // Initialize post-processing effects
   initBallTracer(); // Initialize ball tracer system
   initCelebrationSystem(); // Initialize celebration system
+  initTransitionSystem(); // Initialize transition system
   addClickHandler();
 
   // Generate UI components from configuration
   generateDiceSelectionUI();
 
+  // For initial hole generation, don't use transition (show immediately)
   generateNewHole();
 }
 
